@@ -9,6 +9,7 @@ import urllib3
 import json
 import sqlite3
 import urllib
+from bs4 import BeautifulSoup
 
 
 def addItem(db, blog, id):
@@ -23,8 +24,10 @@ def clean_sitename(site_name):
 
     s1 = site_name.replace("Formula 1 news - Autosport", "Autosport")
     s2 = s1.replace(" - the latest hottest F1 news", "")
-    s3 = s2.replace("BBC Sport - Formula 1","BBC Sport")
-    return s2
+    s3 = s2.replace("BBC Sport - Formula 1", "BBC Sport")
+    s4 = s3.replace(" :: F1 Feed", "")
+    s5 = s4.replace(" - Formula 1 - Stories","")
+    return s5
 
 def clean_headline(headline):
     sep = '|'
@@ -44,8 +47,12 @@ xmlsubscriptions = [
     'https://joesaward.wordpress.com/feed/',
     'https://www.grandprix247.com/feed/',
     'https://www.motorsport.com/rss/f1/news/',
+    'http://feeds.feedburner.com/daily-express-f1',
+    'https://www.planetf1.com/feed/',
+    #'http://feeds.feedburner.com/totalf1-recent',
     'https://www.pitpass.com/fes_php/fes_usr_sit_newsfeed.php?fes_prepend_aty_sht_name=1',
-    'https://peterwindsor.com/feed/'
+    'https://peterwindsor.com/feed/',
+    'http://podcasts.skysports.com/podcasts/SkySportsF1/SkySportsF1.xml'
 ]
 
 podcastsubscriptions = [
@@ -161,7 +168,9 @@ for p in posts:
         day_text = '<div class="day">' + the_day + '</div>'
         prev_day = the_day
     the_site = clean_sitename(q[0])
-    the_news = q[3]
+    pre_news = q[3]
+    soup = BeautifulSoup(pre_news, features="html.parser")
+    the_news = soup.get_text()
     the_link = q[2]
     the_headline = clean_headline(q[1])
     text = day_text + '<button class="collapsible">' + the_headline + \
@@ -213,8 +222,9 @@ print('''<!DOCTYPE html>
 </head>
 
 <body>
-
+<div class="header">F1NEWS</div>
 '''
+
 + body + 
 '''
     <script>

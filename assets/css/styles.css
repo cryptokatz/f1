@@ -67,5 +67,14 @@ body
 
 .time {
 	font-size: 13px;
-    color: #777;
+	color: #777;
+}	
+.header {
+	padding: 20px;
+    color: white;
+    font-family: "Open Sans";
+    font-size: 22px;
+    background-color: #163043;
+}
+
 }
