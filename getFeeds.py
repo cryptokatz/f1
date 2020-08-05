@@ -26,8 +26,9 @@ def clean_sitename(site_name):
     s2 = s1.replace(" - the latest hottest F1 news", "")
     s3 = s2.replace("BBC Sport - Formula 1", "BBC Sport")
     s4 = s3.replace(" :: F1 Feed", "")
-    s5 = s4.replace(" - Formula 1 - Stories","")
-    return s5
+    s5 = s4.replace(" - Formula 1 - Stories", "")
+    s6 = s5.replace("top scoring links : formula1", "r/formula1")
+    return s6
 
 def clean_headline(headline):
     sep = '|'
@@ -52,6 +53,9 @@ xmlsubscriptions = [
     #'http://feeds.feedburner.com/totalf1-recent',
     'https://www.pitpass.com/fes_php/fes_usr_sit_newsfeed.php?fes_prepend_aty_sht_name=1',
     'https://peterwindsor.com/feed/',
+    'https://www.youtube.com/feeds/videos.xml?channel_id=UCB_qr75-ydFVKSF9Dmo6izg',
+    'https://www.youtube.com/feeds/videos.xml?channel_id=UCPwy2q7BNjdLYu1kM_OEJVw',
+    'https://www.reddit.com/r/formula1/top.rss?t=day&limit=5',
     'http://podcasts.skysports.com/podcasts/SkySportsF1/SkySportsF1.xml'
 ]
 
@@ -171,12 +175,18 @@ for p in posts:
     pre_news = q[3]
     soup = BeautifulSoup(pre_news, features="html.parser")
     the_news = soup.get_text()
+    the_news2 = the_news.replace("Follow on Twitter: http://goo.gl/TsvaMs Like on Facebook: http://goo.gl/sBqGfi ","")
     the_link = q[2]
+    icon = '<img src="paperclip.png" style="padding: 5px 0px 0px 5px;" "width="12px" height="12px">'
+    if the_link.find("reddit.com") != -1:
+        icon = '<img src="reddit.png" style="padding: 8px 0px 0px 5px;" "width="14px" height="14px">'
+    if the_link.find("youtube.com") != -1:
+        icon = '<img src="youtube.png" style="padding: 8px 0px 0px 5px;" "width="14px" height="14px">'
     the_headline = clean_headline(q[1])
-    text = day_text + '<button class="collapsible">' + the_headline + \
+    text = day_text + '<button class="collapsible">' + the_headline + icon +\
         ' - <span class="source">' + the_site + \
         '</span><br /><span class="time">' + the_date + \
-        '</span></button><div class="content"><p>' + the_news + \
+        '</span></button><div class="content"><p>' + the_news2 + \
         '</p><a href="' + the_link + \
         '" target="_blank">Read More</a><br /><br /></div>'
     body = body + text

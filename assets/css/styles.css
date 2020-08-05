@@ -8,7 +8,7 @@ body
 	padding: 0;
 	color: #222;
 	font-family: "Open Sans","Droid Sans Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;   
-	background-color: #111;
+	background-color: #fff;
 	font-size: 12px;
 	line-height: 1.55em;
 }
@@ -19,13 +19,13 @@ body
 }
 
 .collapsible {
-	background-color: #021e2f;
+	background-color: #fff;
 	cursor: pointer;
 	padding: 10px;
 	width: 100%;
 	border: none;
 	padding-left: 20px;
-	color: #BDDDDA;
+	color: #111;
 	text-align: left;
 	outline: none;
 	font-size: 14px;
@@ -34,8 +34,8 @@ body
 
 .active,
 .collapsible:hover {
-	background-color: #0A2536;
-	color: orange;
+	background-color: #292930;
+	color: #FCC133;
 }
 
 .content {
@@ -44,15 +44,15 @@ body
 	padding: 0 18px;
 	max-height: 0;
 	overflow: hidden;
-	color: #BDDDDA;
+	color: #ddd;
 	padding-left: 20px;
 	transition: max-height 0.2s ease-out;
-	background-color: #0A2536;
-	border-bottom: 1px solid #111;
+	background-color: #292930;
+	border-bottom: 1px solid #ddd;
 }
 
 .content a {
-	color: orange;
+	color: #E12B38;
 }
 
 .day {
@@ -62,12 +62,12 @@ body
 	font-size: 13px;
 	padding: 10px;
     padding-left: 20px;
-    color: #999;
+    color: #3EB650;
 }
 
 .time {
 	font-size: 13px;
-	color: #777;
+	color: #3EB650;
 }	
 .header {
 	padding: 20px;
