@@ -1,27 +1,19 @@
+from hcluster import linkage
 import numpy
-from operator import itemgetter
-import math
-import feedparser as fp
-import time
-from datetime import datetime, timedelta
-import pytz
-from collections import defaultdict
-import sys
-import dateutil.parser as dp
-import urllib3
-import json
-import sqlite3
-import urllib
-from bs4 import BeautifulSoup
+import feedparser
 import nltk
-import operator
 import math
 from operator import itemgetter
+import operator
 
-def addItem(db, blog, id):
-    add = 'insert into items (blog, id) values (?, ?)'
-    db.execute(add, (blog, id))
-    db.commit()
+
+def top_keywords(n, doc, corpus):
+    d = {}
+    for word in set(doc):
+        d[word] = tfidf(word, doc, corpus)
+    sorted_d = sorted(d.items(), key=operator.itemgetter(1))
+    sorted_d.reverse()
+    return [w[0] for w in sorted_d[:n]]
 
 
 def freq(word, document):
@@ -33,19 +25,12 @@ def wordCount(document):
 
 
 def numDocsContaining(word, documentList):
-  count = 0
-  for document in documentList:
-    if freq(word, document) > 0:
-      count += 1
-  return count
+    count = 0
+    for document in documentList:
+        if freq(word, document) > 0:
+            count += 1
+    return count
 
-def top_keywords(n, doc, corpus):
-    d = {}
-    for word in set(doc):
-        d[word] = tfidf(word, doc, corpus)
-    sorted_d = sorted(d.items(), key=operator.itemgetter(1))
-    sorted_d.reverse()
-    return [w[0] for w in sorted_d[:n]]
 
 def tf(word, document):
     return (freq(word, document) / float(wordCount(document)))
@@ -56,7 +41,8 @@ def idf(word, documentList):
 
 
 def tfidf(word, document, documentList):
-    return (tf(word, document) * idf(word, documentList))
+    return (tf(word, document)*idf(word, documentList))
+
 
 def clean_sitename(site_name):
     """This function returns the absolute
@@ -68,137 +54,87 @@ def clean_sitename(site_name):
     s4 = s3.replace(" :: F1 Feed", "")
     s5 = s4.replace(" - Formula 1 - Stories", "")
     s6 = s5.replace("top scoring links : formula1", "r/formula1")
+    if s6.find("thejudge13") != -1:
+        s6 = "thejudge13"
     return s6
+
 
 def clean_headline(headline):
     sep = '|'
     rest = headline.split(sep, 1)[0]
     return rest
 
-jsonsubscriptions = [
-]
 
-xmlsubscriptions = [
-    'https://www.autosport.com/rss/feed/f1',
+def extract_clusters(Z, threshold, n):
+    clusters = {}
+    ct = n
+    for row in Z:
+        if row[2] < threshold:
+            n1 = int(row[0])
+            n2 = int(row[1])
+
+            if n1 >= n:
+                l1 = clusters[n1]
+                del(clusters[n1])
+            else:
+                l1 = [n1]
+
+            if n2 >= n:
+                l2 = clusters[n2]
+                del(clusters[n2])
+            else:
+                l2 = [n2]
+            l1.extend(l2)
+            clusters[ct] = l1
+            ct += 1
+        else:
+            return clusters
+
+
+feeds = [
     'https://thejudge13.com/feed/',
     'http://feeds.bbci.co.uk/sport/formula1/rss.xml?edition=uk',
-    'https://www.racefans.net/feed/'
-]
+    'https://www.racefans.net/feed/',
+    'https://www.jamesallenonf1.com/feed/',
+    'https://racingnews.co/tag/formula-one/feed/',
+    'https://www.grandprix247.com/feed/',
+    'http://feeds.feedburner.com/daily-express-f1',
+    'https://www.planetf1.com/feed/',
+    'https://www.pitpass.com/fes_php/fes_usr_sit_newsfeed.php?fes_prepend_aty_sht_name=1',
+    'https://peterwindsor.com/feed/',
+    'https://www.autosport.com/rss/feed/f1',
+    'https://www.motorsport.com/rss/f1/news/',
+    'https://www.reddit.com/r/formula1/top.rss?t=day&limit=5'
+    ]
 
-fp._HTMLSanitizer.acceptable_elements |= {'object', 'embed', 'iframe'}
-
-db = sqlite3.connect('read-feeds.db')
-db2 = sqlite3.connect('read-podcasts.db')
-db3 = sqlite3.connect('read-videos.db')
-query = 'select * from items where blog=? and id=?'
-
-# Collect all unread posts and put them in a list of tuples. The items
-# in each tuple are when, blog, title, link, body, n, and author.
-posts = []
-podcasts = []
-videos = []
-n = 0
-n2 = 0
-n3 = 0
 corpus = []
 titles = []
+publisher = []
+text = []
+authors = []
+
+
 ct = -1
+for feed in feeds:
+    d = feedparser.parse(feed)
+    for e in d['entries']:
+        words = nltk.wordpunct_tokenize(e['title'])
+        lowerwords = [x.lower() for x in words if len(x) > 1]
+        ct += 1
+        corpus.append(lowerwords)
+        titles.append(clean_headline(e['title']))
+        text.append(e['description'])
+        publisher.append(clean_sitename(d['feed']['title']))
 
-# We're not going to accept items that are more than 3 days old, even
-# if they aren't in the database of read items. These typically come up
-# when someone does a reset of some sort on their blog and regenerates
-# a feed with old posts that aren't in the database or posts that are
-# in the database but have different IDs.
-utc = pytz.utc
-homeTZ = pytz.timezone('US/Central')
-daysago = datetime.today() - timedelta(days=2)
-daysago = utc.localize(daysago)
-weekago = datetime.today() - timedelta(days=7)
-weekago = utc.localize(weekago)
-
-# NEWS FEEDS
-for s in xmlsubscriptions:
-    try:
-        f = fp.parse(s)
-        try:
-            blog = f['feed']['title']
-        except KeyError:
-            blog = "---"
-        for e in f['entries']:
-            try:
-                id = e['id']
-                if id == '':
-                    id = e['link']
-            except KeyError:
-                id = e['link']
-
-            # Add item only if it hasn't been read.
-            match = db.execute(query, (blog, id)).fetchone()
-            if not match:
-
-                try:
-                    when = e['published_parsed']
-                except KeyError:
-                    when = e['updated_parsed']
-                when = datetime(*when[:6])
-                when = utc.localize(when)
-
-                try:
-                    title = clean_headline(e['title'])
-                    words = nltk.wordpunct_tokenize(nltk.clean_html(e['description']))
-                    wt = [1.0] * len(words)
-                    title = nltk.wordpunct_tokenize(title)
-                    words.extend(title)
-                    wt.extend(3 * len(title))
-                    lowerwords=[x.lower() for x in words if len(x) > 1]
-                    ct += 1
-                    print (ct,"TITLE",title)
-                    corpus.append(lowerwords)
-                    titles.append(title)
-                    wts.append(wt)
-                except KeyError:
-                    title = blog
-                try:
-                    author = " ({})".format(e['authors'][0]['name'])
-                except KeyError:
-                    author = ""
-                try:
-                    body = e['content'][0]['value']
-                except KeyError:
-                    body = e['summary']
-                link = e['link']
-
-                # Include only posts that are less than 3 days old. Add older posts
-                # to the read database.
-                if when > daysago:
-                    posts.append((when, blog, title, link, body,
-                                  "{:04d}".format(n), author, id))
-                    n += 1
-                else:
-                    addItem(db, blog, id)
-    except:
-        pass
-
-# Sort the posts in reverse chronological order.
-posts.sort()
-posts.reverse()
-body = ""
-the_day = ""
-prev_day = ""
-day_text = ""
 
 key_word_list = set()
-nkeywords = 6
+nkeywords = 8
 [[key_word_list.add(x) for x in top_keywords(nkeywords, doc, corpus)]
  for doc in corpus]
 
-ct = -1
-for doc in corpus:
-   ct += 1
-   print (ct, "KEYWORDS", " ".join(top_keywords(nkeywords, doc, corpus)))
-
 feature_vectors = []
 n = len(corpus)
+
 
 for document in corpus:
     vec = []
@@ -206,3 +142,33 @@ for document in corpus:
      for word in key_word_list]
     feature_vectors.append(vec)
 
+
+mat = numpy.empty((n, n))
+for i in range(0, n):
+    for j in range(0, n):
+        mat[i][j] = nltk.cluster.util.cosine_distance(
+            feature_vectors[i], feature_vectors[j])
+
+
+t = 0.8
+Z = linkage(mat, 'single')
+
+
+clusters = extract_clusters(Z, t, n)
+
+first = 0
+
+for key in clusters:
+    first = 1
+    print(" ")
+    print("<div class='item'>")
+    for id in clusters[key]:
+        if first == 1:
+            print("<div class='sitename'>",publisher[id],"<div>") 
+            print("<div class='headline'>", titles[id], "<div>")
+            print("<div class='content'>",text[id], "<div>")
+            first = first + 1
+            print("More: ", end='')
+        else:
+            print(publisher[id], " ", end='')
+    print("</div>")
