@@ -1,97 +1,18 @@
-import feedparser as fp
+from hcluster import linkage
+import numpy
+import feedparser
+import nltk
+import math
+import pytz
+from operator import itemgetter
+import operator
+from bs4 import BeautifulSoup
 import time
 from datetime import datetime, timedelta
-import pytz
-from collections import defaultdict
-import sys
-import dateutil.parser as dp
-import urllib3
-import json
-import sqlite3
-import urllib
-from bs4 import BeautifulSoup
+from nltk.stem import PorterStemmer
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
 
-
-def addItem(db, blog, id):
-    add = 'insert into items (blog, id) values (?, ?)'
-    db.execute(add, (blog, id))
-    db.commit()
-
-
-def clean_sitename(site_name):
-    """This function returns the absolute
-    value of the entered number"""
-
-    s1 = site_name.replace("Formula 1 news - Autosport", "Autosport")
-    s2 = s1.replace(" - the latest hottest F1 news", "")
-    s3 = s2.replace("BBC Sport - Formula 1", "BBC Sport")
-    s4 = s3.replace(" :: F1 Feed", "")
-    s5 = s4.replace(" - Formula 1 - Stories", "")
-    s6 = s5.replace("top scoring links : formula1", "r/formula1")
-    return s6
-
-def clean_headline(headline):
-    sep = '|'
-    rest = headline.split(sep, 1)[0]
-    return rest
-
-jsonsubscriptions = [
-]
-
-xmlsubscriptions = [
-    'https://www.autosport.com/rss/feed/f1',
-    'https://thejudge13.com/feed/',
-    'http://feeds.bbci.co.uk/sport/formula1/rss.xml?edition=uk',
-    'https://www.racefans.net/feed/',
-    'https://www.jamesallenonf1.com/feed/',
-    'https://racingnews.co/tag/formula-one/feed/',
-    'https://joesaward.wordpress.com/feed/',
-    'https://www.grandprix247.com/feed/',
-    'https://www.motorsport.com/rss/f1/news/',
-    'http://feeds.feedburner.com/daily-express-f1',
-    'https://www.planetf1.com/feed/',
-    #'http://feeds.feedburner.com/totalf1-recent',
-    'https://www.pitpass.com/fes_php/fes_usr_sit_newsfeed.php?fes_prepend_aty_sht_name=1',
-    'https://peterwindsor.com/feed/',
-    'https://www.youtube.com/feeds/videos.xml?channel_id=UCB_qr75-ydFVKSF9Dmo6izg',
-    'https://www.youtube.com/feeds/videos.xml?channel_id=UCPwy2q7BNjdLYu1kM_OEJVw',
-    'https://www.reddit.com/r/formula1/top.rss?t=day&limit=5',
-    'http://podcasts.skysports.com/podcasts/SkySportsF1/SkySportsF1.xml'
-]
-
-podcastsubscriptions = [
-    'http://www.fastestlappodcast.com/feed/',
-    'https://rss.acast.com/missedapex',
-    'https://www.spreaker.com/show/2977992/episodes/feed',
-    'http://podcasts.skysports.com/podcasts/SkySportsF1/SkySportsF1.xml'
-]
-
-videosubscriptions = [
-    'https://www.youtube.com/feeds/videos.xml?channel_id=UCB_qr75-ydFVKSF9Dmo6izg',
-    'https://www.youtube.com/feeds/videos.xml?channel_id=UCPwy2q7BNjdLYu1kM_OEJVw'
-]
-
-fp._HTMLSanitizer.acceptable_elements |= {'object', 'embed', 'iframe'}
-
-db = sqlite3.connect('read-feeds.db')
-db2 = sqlite3.connect('read-podcasts.db')
-db3 = sqlite3.connect('read-videos.db')
-query = 'select * from items where blog=? and id=?'
-
-# Collect all unread posts and put them in a list of tuples. The items
-# in each tuple are when, blog, title, link, body, n, and author.
-posts = []
-podcasts = []
-videos = []
-n = 0
-n2 = 0
-n3 = 0
-
-# We're not going to accept items that are more than 3 days old, even
-# if they aren't in the database of read items. These typically come up
-# when someone does a reset of some sort on their blog and regenerates
-# a feed with old posts that aren't in the database or posts that are
-# in the database but have different IDs.
 utc = pytz.utc
 homeTZ = pytz.timezone('US/Central')
 daysago = datetime.today() - timedelta(days=2)
@@ -100,160 +21,267 @@ weekago = datetime.today() - timedelta(days=7)
 weekago = utc.localize(weekago)
 
 
-# NEWS FEEDS
-for s in xmlsubscriptions:
-    try:
-        f = fp.parse(s)
+def top_keywords(n, doc, corpus):
+    d = {}
+    for word in set(doc):
+        d[word] = tfidf(word, doc, corpus)
+    sorted_d = sorted(d.items(), key=operator.itemgetter(1))
+    sorted_d.reverse()
+    return [w[0] for w in sorted_d[:n]]
+
+
+def freq(word, document):
+    return document.count(word)
+
+
+def wordCount(document):
+    return len(document)
+
+
+def numDocsContaining(word, documentList):
+    count = 0
+    for document in documentList:
+        if freq(word, document) > 0:
+            count += 1
+    return count
+
+
+def tf(word, document):
+    return (freq(word, document) / float(wordCount(document)))
+
+
+def idf(word, documentList):
+    return math.log(len(documentList) / numDocsContaining(word, documentList))
+
+
+def tfidf(word, document, documentList):
+    return (tf(word, document)*idf(word, documentList))
+
+
+def clean_sitename(site_name):
+    s1 = site_name.replace("Formula 1 news - Autosport", "Autosport")
+    s2 = s1.replace(" - the latest hottest F1 news", "")
+    s3 = s2.replace("BBC Sport - Formula 1", "BBC Sport")
+    s4 = s3.replace(" :: F1 Feed", "")
+    s5 = s4.replace(" - Formula 1 - Stories", "")
+    s6 = s5.replace("top scoring links : formula1", "r/formula1")
+    if s6.find("thejudge13") != -1:
+        s6 = "thejudge13"
+    rest = s6.replace("`", "'")
+    rest = rest.replace("’", "'")
+    rest = rest.replace("‘", "'")
+    return rest
+
+def clean_headline(headline):
+    sep = '|'
+    rest = headline.split(sep, 1)[0]
+    rest = rest.replace("`", "'")
+    rest = rest.replace("’", "'")
+    return rest
+
+
+def extract_clusters(Z, threshold, n):
+    clusters = {}
+    ct = n
+    for row in Z:
+        if row[2] < threshold:
+            n1 = int(row[0])
+            n2 = int(row[1])
+            if n1 >= n:
+                l1 = clusters[n1]
+                del(clusters[n1])
+            else:
+                l1 = [n1]
+
+            if n2 >= n:
+                l2 = clusters[n2]
+                del(clusters[n2])
+            else:
+                l2 = [n2]
+            l1.extend(l2)
+            clusters[ct] = l1
+            ct += 1
+        else:
+            return clusters
+
+
+feeds = [
+    'https://thejudge13.com/feed/',
+    'http://feeds.bbci.co.uk/sport/formula1/rss.xml?edition=uk',
+    'https://www.racefans.net/feed/',
+    'https://www.jamesallenonf1.com/feed/',
+    'https://www.grandprix247.com/feed/',
+    'http://feeds.feedburner.com/daily-express-f1',
+    'https://www.planetf1.com/feed/',
+    'https://www.pitpass.com/fes_php/fes_usr_sit_newsfeed.php?fes_prepend_aty_sht_name=1',
+    'https://peterwindsor.com/feed/',
+    'https://f1-insider.com/category/news/feed/',
+    'https://www.autosport.com/rss/feed/f1',
+    'https://www.motorsport.com/rss/f1/news/',
+    'https://www.reddit.com/r/formula1/top.rss?t=day&limit=5'
+    ]
+
+corpus = []
+titles = []
+publisher = []
+text = []
+authors = []
+sitelink = []
+link = []
+date = []
+top_story = []
+
+ps = PorterStemmer()
+
+ct = -1
+for feed in feeds:
+    d = feedparser.parse(feed)
+    for e in d['entries']:
+        clean_title = clean_headline(e['title'])
+        words = nltk.wordpunct_tokenize((e['description']))
+        words.extend(nltk.wordpunct_tokenize(e['title']))
+
+        stop_words = set(stopwords.words('english'))
+
+        lowerwords = [x.lower() for x in words if len(x) > 1]
+
+        filtered = []
+        important = ['valterri','pole','live','qualifying','renault','ricciardo','ocon','mclaren','norris','sainz','hulkenberg','announce','contract','concorde','bottas','mercedes','lewis','hamilton','ferrari','verstappen','red','bull','formula','2021','sign','deal','vettel','perez','racing','point','stroll','horner','wolff','marko','leclerc','penalty','appeal']
+
+        for w in lowerwords:
+            if w not in stop_words:
+                if len(w) > 1:
+                    filtered.append(w)
+            if w in important:
+                filtered.append(w)    
+                filtered.append(w)
+
+        # Stem the words so we compare canonical words
+        # lowerwords = [ps.stem(x) for x in words if len(x) > 1]
+        
+        corpus.append(filtered)
+
+        # Clean the headline
+        titles.append(clean_headline(e['title']))
+
+        # Clean out the HTML from the article snippet
+        soup = BeautifulSoup(e['description'], features="html.parser")
+        news = soup.get_text()
+        text.append(news)
+
+        publisher.append(clean_sitename(d['feed']['title']))
+        link.append(e['link'])
+        sitelink.append(d['feed']['link'])
+        top_story.append("no")
+
+        # Get the localized dates
         try:
-            blog = f['feed']['title']
+            when = e['published_parsed']
         except KeyError:
-            blog = "---"
-        for e in f['entries']:
-            try:
-                id = e['id']
-                if id == '':
-                    id = e['link']
-            except KeyError:
-                id = e['link']
-
-            # Add item only if it hasn't been read.
-            match = db.execute(query, (blog, id)).fetchone()
-            if not match:
-
-                try:
-                    when = e['published_parsed']
-                except KeyError:
-                    when = e['updated_parsed']
-                when = datetime(*when[:6])
-                when = utc.localize(when)
-
-                try:
-                    title = e['title']
-                except KeyError:
-                    title = blog
-                try:
-                    author = " ({})".format(e['authors'][0]['name'])
-                except KeyError:
-                    author = ""
-                try:
-                    body = e['content'][0]['value']
-                except KeyError:
-                    body = e['summary']
-                link = e['link']
-
-                # Include only posts that are less than 3 days old. Add older posts
-                # to the read database.
-                if when > daysago:
-                    posts.append((when, blog, title, link, body,
-                                  "{:04d}".format(n), author, id))
-                    n += 1
-                else:
-                    addItem(db, blog, id)
-    except:
-        pass
-
-# Sort the posts in reverse chronological order.
-posts.sort()
-posts.reverse()
-body = ""
-the_day = ""
-prev_day = ""
-day_text = ""
-
-for p in posts:
-    q = [x for x in p[1:]]
-    timestamp = p[0].astimezone(homeTZ)
-    # the_date = timestamp.strftime('%b %d, %Y %I:%M %p')
-    the_date = timestamp.strftime('%I:%M %p')
-    the_day = timestamp.strftime('%B %d, %Y')
-    if the_day == prev_day:
-        day_text = ""
-    else:
-        day_text = '<div class="day">' + the_day + '</div>'
-        prev_day = the_day
-    the_site = clean_sitename(q[0])
-    pre_news = q[3]
-    soup = BeautifulSoup(pre_news, features="html.parser")
-    the_news = soup.get_text()
-    the_news2 = the_news.replace("Follow on Twitter: http://goo.gl/TsvaMs Like on Facebook: http://goo.gl/sBqGfi ","")
-    the_link = q[2]
-    icon = '<img src="paperclip.png" style="padding: 5px 0px 0px 5px;" "width="12px" height="12px">'
-    if the_link.find("reddit.com") != -1:
-        icon = '<img src="reddit.png" style="padding: 8px 0px 0px 5px;" "width="14px" height="14px">'
-    if the_link.find("youtube.com") != -1:
-        icon = '<img src="youtube.png" style="padding: 8px 0px 0px 5px;" "width="14px" height="14px">'
-    the_headline = clean_headline(q[1])
-    text = day_text + '<button class="collapsible">' + the_headline + icon +\
-        ' - <span class="source">' + the_site + \
-        '</span><br /><span class="time">' + the_date + \
-        '</span></button><div class="content"><p>' + the_news2 + \
-        '</p><a href="' + the_link + \
-        '" target="_blank">Read More</a><br /><br /></div>'
-    body = body + text
-
-# Create an HTML list of the video feed
-listTemplate = '''<div class="news-row">
-                    <a class="title" href="{3}" target="_blank">{2}</a>
-                    <img src="assets/img/paperclip.png" style="height: 10px;" />
-                    <span class="source">{1}</span><br />
-                    <div class="source">4 {4}</div>                    
-                    <div class="source">5 {5}</div>          
-                    <div class="source">6 {6}</div>                       
-                    <div class="source">7 {7}</div>                    
-                    <div class="source">8 {8}</div>          
-                    <div class="source">9 {9}</div>      
-                    <div class="source">7 {10}</div>                         
-                  </div>'''
-litems = []
-video = ''
-for p in videos:
-    q = [x for x in p[1:]]
-    temp = q[3]
-    description = temp.replace('Like on Facebook: http://goo.gl/sBqGfi', '')
-    linky = q[2]
-    imagelink = 'https://i2.ytimg.com/vi/' + \
-        linky.replace('https://www.youtube.com/watch?v=', '') + \
-        '/hqdefault.jpg'
-    fixedbody = description.replace(
-        'Follow on Twitter: http://goo.gl/TsvaMs', '')
-    text = '<div class="news-row"><a class="title" href="' + q[2] + '" target="_blank">' + q[1] + '</a>' + '<span class="source">' + q[0] + '</span>' + \
-        '<div class="news">' + fixedbody + '</div>' + \
-        '<br /></div>'
-    video = video + text
+            when = e['updated_parsed']
+        when = datetime(*when[:6])
+        when = utc.localize(when)
+        date.append(when)
 
 
-# Print the HTMl.
+key_word_list = set()
+nkeywords = 5
+[[key_word_list.add(x) for x in top_keywords(nkeywords, doc, corpus)] for doc in corpus]
+for doc in corpus:
+   ct += 1
+
+feature_vectors = []
+n = len(corpus)
+
+for document in corpus:
+    vec = []
+    [vec.append(tfidf(word, document, corpus) if word in document else 0)
+     for word in key_word_list]
+    feature_vectors.append(vec)
+
+mat = numpy.empty((n, n))
+for i in range(0, n):
+    for j in range(0, n):
+        mat[i][j] = nltk.cluster.util.cosine_distance(
+            feature_vectors[i], feature_vectors[j])
+
+
+t = 0.80
+Z = linkage(mat,'complete')
+
+clusters = extract_clusters(Z, t, n)
+
 print('''<!DOCTYPE html>
 <html>
 
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="assets/css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Raleway&display=swap" rel="stylesheet">
 </head>
 
 <body>
-<div class="header">F1NEWS</div>
-'''
+    
+    <div class="row">
+    <div class="header"><div class='logo'><img src='logo.png'></div></div>
+    <div class="column left">    
+''')
 
-+ body + 
-'''
-    <script>
-        var coll = document.getElementsByClassName("collapsible");
-        var i;
+posts = []
 
-        for (i = 0; i < coll.length; i++) {
-            coll[i].addEventListener("click", function () {
-                this.classList.toggle("active");
-                var content = this.nextElementSibling;
-                if (content.style.maxHeight) {
-                    content.style.maxHeight = null;
-                } else {
-                    content.style.maxHeight = content.scrollHeight + "px";
-                }
-            });
-        }
-    </script>
+for key in clusters:
+    first = 1
+    code = " " + "<div class='item'>"
+    for id in clusters[key]:
+        ## The first article in the cluster
+        if first == 1:
+            # Extract the first sentence from each sentence 
+            # so we can avoid the last sentences from each site like social media promotion
+            cleaned = text[id].partition('.')[0] + '.'
+            code += "<div class='sitename'>" + "<a href='" + sitelink[id] + "'>" + publisher[id] + "</a></div>"
+            code += "<div class='headline'>" + "<a href='" +link[id] +"'>" + titles[id] + "</a></div>"
+            code += "<div class='text'>" + cleaned + "</div>"
+            first = first + 1
+            code += "<div class='more'>More: "
+            the_date = date[id]
+        # All other articles in the cluster go to the secondary linsk    
+        else:
+            code += "<a href=" + link[id] + ">" + "[" + publisher[id] + "] " + titles[id] + "</a><br/> "
+        top_story[id] = "yes"
+    code += "</div></div>"
+    posts.append((the_date,code))
 
-</body>
+posts.sort()
+posts.reverse()
 
-</html>''')
+for p in posts:
+    print(p[1])
+
+print("</div><div class='column middle'>")
+
+latest = []
+num = len(titles)
+for i in range(0, num):
+    code = ""
+    if top_story[i] == "no":
+        code += "<div class='item'><div class='sitename'>" + "<a href='" + sitelink[i] + "'>" + publisher[i] + "</a></div>"
+        code += "<div class='headline2'>" + "<a href='" + link[i] + "'>" + titles[i] + "</a></div></div>"
+        latest.append((date[i],code))
+
+latest.sort()
+latest.reverse()
+
+count = 1
+for l in latest:
+    if count < 20:
+        print(l[1])
+    count += 1
+
+print(
+    '''
+</div>
+</div>
+
+</body >
+
+</html >''')

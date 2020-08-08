@@ -2,67 +2,63 @@
 Base styles
 ------------------------*/
 
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Slab&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Merriweather&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Raleway&display=swap');
+
 body
 {
+	font-family: 'Roboto', serif;
 	margin: 0;
 	padding: 0;
-	color: #222;
-	font-family: "Open Sans","Droid Sans Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;   
-	background-color: #fff;
-	font-size: 12px;
+	color: #000;
+	font-size: 13px;
 	line-height: 1.55em;
+	background-color: #eee;
 }
 
-.source {
-	font-size: 12px;
-    color: #aaa;
+.sitename a {
+	font-size: 13px;
+	color: #B68060; 
+	text-decoration: none;
 }
 
-.collapsible {
-	background-color: #fff;
-	cursor: pointer;
-	padding: 10px;
-	width: 100%;
-	border: none;
-	padding-left: 20px;
-	color: #111;
-	text-align: left;
-	outline: none;
+.item {
 	font-size: 14px;
-	font-family: "Open Sans","Droid Sans Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;   
+	padding: 18px 28px 0px 18px;
 }
 
-.active,
-.collapsible:hover {
-	background-color: #292930;
-	color: #FCC133;
-}
-
-.content {
-	font-family: "Open Sans","Droid Sans Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;   
-	font-size: 13px;
-	padding: 0 18px;
-	max-height: 0;
-	overflow: hidden;
-	color: #ddd;
-	padding-left: 20px;
-	transition: max-height 0.2s ease-out;
-	background-color: #292930;
-	border-bottom: 1px solid #ddd;
-}
-
-.content a {
-	color: #E12B38;
-}
-
-.day {
-	background-color: #021b2a;
+.headline a {
+	color: #004860;
+	font-size: 22px;
+	font-family: 'Raleway';
 	font-weight: 600;
-	font-family: "Open Sans","Droid Sans Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;   
-	font-size: 13px;
-	padding: 10px;
-    padding-left: 20px;
-    color: #3EB650;
+	text-decoration: none;
+}
+
+.headline2 a {
+	color: #004860;
+	font-size: 16px;
+	font-family: 'Raleway';
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.headline a:hover {
+	background-color: #D0E8F4;
+	text-decoration: underline;	
+}
+
+.headline2 a:hover {
+	background-color: #D0E8F4;
+	text-decoration: underline;	
+}
+
+.text {
+	font-size: 14px;
+	color: #000;
+	padding: 5px 0px 5px 0;
 }
 
 .time {
@@ -70,11 +66,92 @@ body
 	color: #3EB650;
 }	
 .header {
-	padding: 20px;
+	padding: 10px;
     color: white;
-    font-family: "Open Sans";
-    font-size: 22px;
-    background-color: #163043;
+    font-family: 'Raleway';
+    font-size: 24px;
+	background-color: red;
+	font-weight: bold;
 }
 
+.more {
+	padding-bottom: 15px;
+	padding-top: 10px;
+	border-bottom: 1px solid #ddd;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.more a {
+	color: #004860;
+	font-weight: normal;
+	text-decoration: none;
+}
+
+.more a:hover {
+	color: #004860;
+	text-decoration: underline;
+}
+
+.main {
+	max-width: 600px;
+}
+
+.top {
+	font-family: 'Raleway';
+    background-color: #000;
+    width: 250px;
+    color: white;
+	padding-left: 20px;
+	margin-left: 20px;
+}
+
+.latest {
+	font-family: 'Raleway';
+    color: black;
+	padding-left: 20px;
+	margin-left: 20px;
+}
+
+.column {
+  float: left;
+  padding: 10px;
+}
+
+.left {
+  width: 65%;
+  max-width: 600px;
+  background-color: white;
+}
+
+.middle, .right {
+  width: 33%;
+  max-width: 275px;
+}
+
+.right {
+	background-color: white;
+}
+
+.middle {
+	background-color: #f4f4f4;
+}
+
+.row {
+	max-width: 900px;
+	margin: 0 auto;
+}
+
+/* Clear floats after the columns */
+.row:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+/* Responsive layout - when the screen is less than 600px wide, make the three columns stack on top of each other instead of next to each other */
+@media screen and (max-width: 600px) {
+  .column {
+    width: 100%;
+  }
 }
