@@ -29,6 +29,12 @@ body
 	padding: 18px 28px 0px 18px;
 }
 
+.item2 {
+    font-size: 14px;
+    padding: 15px 18px 15px 18px;
+    border-bottom: 1px solid #ddd;
+}
+
 .headline a {
 	color: #004860;
 	font-size: 22px;
@@ -39,7 +45,7 @@ body
 
 .headline2 a {
 	color: #004860;
-	font-size: 16px;
+	font-size: 14px;
 	font-family: 'Raleway';
 	font-weight: 600;
 	text-decoration: none;
@@ -72,6 +78,7 @@ body
     font-size: 24px;
 	background-color: red;
 	font-weight: bold;
+	max-width: 900px;
 }
 
 .more {
@@ -153,5 +160,12 @@ body
 @media screen and (max-width: 600px) {
   .column {
     width: 100%;
+  }
+  .middle {
+	  width: 100%;
+	  max-width: 600px;
+  }
+  .row {
+	  width: 100%;
   }
 }
