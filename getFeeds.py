@@ -1,3 +1,5 @@
+# coding: utf-8
+
 from hcluster import linkage
 import numpy
 import feedparser
@@ -12,6 +14,7 @@ from datetime import datetime, timedelta
 from nltk.stem import PorterStemmer
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
+import ftfy
 
 utc = pytz.utc
 homeTZ = pytz.timezone('US/Central')
@@ -65,34 +68,23 @@ def clean_sitename(site_name):
     s4 = s3.replace(" :: F1 Feed", "")
     s5 = s4.replace(" - Formula 1 - Stories", "")
     s6 = s5.replace("top scoring links : formula1", "r/formula1")
-    s6 = s6.replace("[F1 News, Reports and Race Results - F1i.com]", "F1i")
-    s6 = s6.replace("[News - F1-Insider.com]", "F1-Insider")
-    s6 = s6.replace("[F1Technical.net . Motorsport news]", "F1Technical")
-    s6 = s6.replace("[www.espn.com - F1]","ESPN")
-    if s6.find("thejudge13") != -1:
-        s6 = "thejudge13"
-    rest = replace_unicode(s6)
-    return rest
+    s7 = s6.replace("F1 News, Reports and Race Results - F1i.com", "F1i")
+    s8 = s7.replace("News - F1-Insider.com", "F1-Insider")
+    s9 = s8.replace("F1Technical.net . Motorsport news", "F1Technical")
+    s10 = s9.replace("www.espn.com - F1","ESPN")
+    if s10.find("thejudge13") != -1:
+        s10 = "thejudge13"
+    if s10.find("EssentiallySports") != -1:
+        s10 = "EssentiallySports"    
+    text = ftfy.fix_text(s10)
+    return text
 
 
 def clean_headline(headline):
     sep = '|'
     rest = headline.split(sep, 1)[0]
-    replace_unicode(rest)
-    return rest
-
-
-def replace_unicode(text):
-    rest = text.replace("`", "'")
-    rest = rest.replace("’", "'")
-    rest = rest.replace("‘", "'")
-    rest = rest.replace("•", "-")
-    rest = rest.replace("–", "-")
-    rest = rest.replace("‘", "'")
-    rest = rest.replace("“", "'")
-    rest = rest.replace("”", "'")
-    return rest
-
+    text = ftfy.fix_text(rest)
+    return text
 
 def extract_clusters(Z, threshold, n):
     clusters = {}
@@ -129,7 +121,6 @@ feeds = [
     'https://www.planetf1.com/feed/',
     'https://www.pitpass.com/fes_php/fes_usr_sit_newsfeed.php?fes_prepend_aty_sht_name=1',
     'https://peterwindsor.com/feed/',
-    'https://f1-insider.com/category/news/feed/',
     'https://www.autosport.com/rss/feed/f1',
     'https://www.motorsport.com/rss/f1/news/',
     'https://www.reddit.com/r/formula1/top.rss?t=day&limit=5',
@@ -157,15 +148,16 @@ for feed in feeds:
     d = feedparser.parse(feed)
     for e in d['entries']:
         clean_title = clean_headline(e['title'])
-        words = nltk.wordpunct_tokenize((e['description']))
-        words.extend(nltk.wordpunct_tokenize(e['title']))
+        clean_text = ftfy.fix_text(e['description'])
+        words = nltk.wordpunct_tokenize(clean_text)
+        words.extend(nltk.wordpunct_tokenize(clean_title))
 
         stop_words = set(stopwords.words('english'))
 
         lowerwords = [x.lower() for x in words if len(x) > 1]
 
         filtered = []
-        important = ['valterri', 'pole', 'live', 'qualifying', 'renault', 'ricciardo', 'ocon', 'mclaren', 'norris', 'sainz', 'hulkenberg', 'announce', 'contract', 'concorde', 'bottas', 'mercedes', 'lewis',
+        important = ['chassis','fernando','alonso','alpha','alphatauri','brown','f1','leclerc','mclaren','fp1','fp2','valterri', 'pole', 'live', 'qualifying', 'renault', 'ricciardo', 'ocon', 'mclaren', 'norris', 'sainz', 'hulkenberg', 'announce', 'contract', 'concorde', 'bottas', 'mercedes', 'lewis',
                      'hamilton', 'ferrari', 'verstappen', 'red', 'bull', 'formula', '2021', 'sign', 'deal', 'vettel', 'perez', 'racing', 'point', 'stroll', 'horner', 'wolff', 'marko', 'leclerc', 'penalty', 'appeal']
 
         for w in lowerwords:
@@ -182,12 +174,12 @@ for feed in feeds:
         corpus.append(filtered)
 
         # Clean the headline
-        titles.append(clean_headline(e['title']))
+        titles.append(clean_title)
 
         # Clean out the HTML from the article snippet
         soup = BeautifulSoup(e['description'], features="html.parser")
         news = soup.get_text()
-        text.append(replace_unicode(news))
+        text.append(news)
 
         publisher.append(clean_sitename(d['feed']['title']))
         link.append(e['link'])
