@@ -65,18 +65,32 @@ def clean_sitename(site_name):
     s4 = s3.replace(" :: F1 Feed", "")
     s5 = s4.replace(" - Formula 1 - Stories", "")
     s6 = s5.replace("top scoring links : formula1", "r/formula1")
+    s6 = s6.replace("[F1 News, Reports and Race Results - F1i.com]", "F1i")
+    s6 = s6.replace("[News - F1-Insider.com]", "F1-Insider")
+    s6 = s6.replace("[F1Technical.net . Motorsport news]", "F1Technical")
+    s6 = s6.replace("[www.espn.com - F1]","ESPN")
     if s6.find("thejudge13") != -1:
         s6 = "thejudge13"
-    rest = s6.replace("`", "'")
-    rest = rest.replace("’", "'")
-    rest = rest.replace("‘", "'")
+    rest = replace_unicode(s6)
     return rest
+
 
 def clean_headline(headline):
     sep = '|'
     rest = headline.split(sep, 1)[0]
-    rest = rest.replace("`", "'")
+    replace_unicode(rest)
+    return rest
+
+
+def replace_unicode(text):
+    rest = text.replace("`", "'")
     rest = rest.replace("’", "'")
+    rest = rest.replace("‘", "'")
+    rest = rest.replace("•", "-")
+    rest = rest.replace("–", "-")
+    rest = rest.replace("‘", "'")
+    rest = rest.replace("“", "'")
+    rest = rest.replace("”", "'")
     return rest
 
 
@@ -118,8 +132,13 @@ feeds = [
     'https://f1-insider.com/category/news/feed/',
     'https://www.autosport.com/rss/feed/f1',
     'https://www.motorsport.com/rss/f1/news/',
-    'https://www.reddit.com/r/formula1/top.rss?t=day&limit=5'
-    ]
+    'https://www.reddit.com/r/formula1/top.rss?t=day&limit=5',
+    'http://futureneteam.biz/category/formula-1/feed/',
+    'https://en.f1i.com/news/feed',
+    'https://www.f1technical.net/rss/news.xml',
+    'https://www.essentiallysports.com/category/f1/feed/',
+    'https://www.espn.com/espn/rss/f1/news'
+]
 
 corpus = []
 titles = []
@@ -146,19 +165,20 @@ for feed in feeds:
         lowerwords = [x.lower() for x in words if len(x) > 1]
 
         filtered = []
-        important = ['valterri','pole','live','qualifying','renault','ricciardo','ocon','mclaren','norris','sainz','hulkenberg','announce','contract','concorde','bottas','mercedes','lewis','hamilton','ferrari','verstappen','red','bull','formula','2021','sign','deal','vettel','perez','racing','point','stroll','horner','wolff','marko','leclerc','penalty','appeal']
+        important = ['valterri', 'pole', 'live', 'qualifying', 'renault', 'ricciardo', 'ocon', 'mclaren', 'norris', 'sainz', 'hulkenberg', 'announce', 'contract', 'concorde', 'bottas', 'mercedes', 'lewis',
+                     'hamilton', 'ferrari', 'verstappen', 'red', 'bull', 'formula', '2021', 'sign', 'deal', 'vettel', 'perez', 'racing', 'point', 'stroll', 'horner', 'wolff', 'marko', 'leclerc', 'penalty', 'appeal']
 
         for w in lowerwords:
             if w not in stop_words:
                 if len(w) > 1:
                     filtered.append(w)
             if w in important:
-                filtered.append(w)    
+                filtered.append(w)
                 filtered.append(w)
 
         # Stem the words so we compare canonical words
         # lowerwords = [ps.stem(x) for x in words if len(x) > 1]
-        
+
         corpus.append(filtered)
 
         # Clean the headline
@@ -167,7 +187,7 @@ for feed in feeds:
         # Clean out the HTML from the article snippet
         soup = BeautifulSoup(e['description'], features="html.parser")
         news = soup.get_text()
-        text.append(news)
+        text.append(replace_unicode(news))
 
         publisher.append(clean_sitename(d['feed']['title']))
         link.append(e['link'])
@@ -186,7 +206,8 @@ for feed in feeds:
 
 key_word_list = set()
 nkeywords = 5
-[[key_word_list.add(x) for x in top_keywords(nkeywords, doc, corpus)] for doc in corpus]
+[[key_word_list.add(x) for x in top_keywords(nkeywords, doc, corpus)]
+ for doc in corpus]
 for doc in corpus:
    ct += 1
 
@@ -207,7 +228,7 @@ for i in range(0, n):
 
 
 t = 0.80
-Z = linkage(mat,'complete')
+Z = linkage(mat, 'complete')
 
 clusters = extract_clusters(Z, t, n)
 
@@ -215,6 +236,7 @@ print('''<!DOCTYPE html>
 <html>
 
 <head>
+<title>GPWEEKEND - Formula 1 News Aggregator</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="assets/css/styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Raleway&display=swap" rel="stylesheet">
@@ -235,21 +257,25 @@ for key in clusters:
     for id in clusters[key]:
         ## The first article in the cluster
         if first == 1:
-            # Extract the first sentence from each sentence 
+            # Extract the first sentence from each sentence
             # so we can avoid the last sentences from each site like social media promotion
             cleaned = text[id].partition('.')[0] + '.'
-            code += "<div class='sitename'>" + "<a href='" + sitelink[id] + "'>" + publisher[id] + "</a></div>"
-            code += "<div class='headline'>" + "<a href='" +link[id] +"'>" + titles[id] + "</a></div>"
+            code += "<div class='sitename'>" + "<a href='" + \
+                sitelink[id] + "'>" + publisher[id] + "</a></div>"
+            code += "<div class='headline'>" + "<a href='" + \
+                link[id] + "'>" + titles[id] + "</a></div>"
             code += "<div class='text'>" + cleaned + "</div>"
             first = first + 1
             code += "<div class='more'>More: "
             the_date = date[id]
-        # All other articles in the cluster go to the secondary linsk    
+        # All other articles in the cluster go to the secondary linsk
         else:
-            code += "<a href=" + link[id] + ">" + "[" + publisher[id] + "] " + titles[id] + "</a><br/> "
+            code += "<a href=" + \
+                link[id] + ">" + "[" + publisher[id] + "] " + \
+                    titles[id] + "</a><br/> "
         top_story[id] = "yes"
     code += "</div></div>"
-    posts.append((the_date,code))
+    posts.append((the_date, code))
 
 posts.sort()
 posts.reverse()
@@ -264,9 +290,11 @@ num = len(titles)
 for i in range(0, num):
     code = ""
     if top_story[i] == "no":
-        code += "<div class='item'><div class='sitename'>" + "<a href='" + sitelink[i] + "'>" + publisher[i] + "</a></div>"
-        code += "<div class='headline2'>" + "<a href='" + link[i] + "'>" + titles[i] + "</a></div></div>"
-        latest.append((date[i],code))
+        code += "<div class='item2'><div class='sitename'>" + \
+            "<a href='" + sitelink[i] + "'>" + publisher[i] + "</a></div>"
+        code += "<div class='headline2'>" + "<a href='" + \
+            link[i] + "'>" + clean_headline(titles[i]) + "</a></div></div>"
+        latest.append((date[i], code))
 
 latest.sort()
 latest.reverse()
