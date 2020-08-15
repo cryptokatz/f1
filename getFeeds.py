@@ -22,6 +22,7 @@ daysago = datetime.today() - timedelta(days=2)
 daysago = utc.localize(daysago)
 weekago = datetime.today() - timedelta(days=7)
 weekago = utc.localize(weekago)
+stop_words = set(stopwords.words('english'))
 
 
 def top_keywords(n, doc, corpus):
@@ -75,7 +76,9 @@ def clean_sitename(site_name):
     if s10.find("thejudge13") != -1:
         s10 = "thejudge13"
     if s10.find("EssentiallySports") != -1:
-        s10 = "EssentiallySports"    
+        s10 = "EssentiallySports"
+    if s10.find("F1i") != -1:
+        s10 = "F1i"
     text = ftfy.fix_text(s10)
     return text
 
@@ -84,6 +87,34 @@ def clean_headline(headline):
     sep = '|'
     rest = headline.split(sep, 1)[0]
     text = ftfy.fix_text(rest)
+    return text
+
+def fix_f1_phrases(text):
+    text = text.lower()
+    text = text.replace("grand prix", "gp")
+    text = text.replace("fp1","practice")
+    text = text.replace("fp2","practice")
+    text = text.replace("fp3","practice")
+    text = text.replace("lewis hamilton","hamilton")
+    text = text.replace("max verstappen", "verstappen")
+    text = text.replace("valtteri bottas", "bottas")
+    text = text.replace("toto wolff", "wolff")
+    text = text.replace("valtteri bottas", "bottas")
+    text = text.replace("!", "")
+    text = text.replace(":", "")
+    return text
+
+def remove_stop_words(text):
+    new_text = ""
+    for word in text:
+        if word not in stop_words:
+            new_text = new_text + " " + word
+    return new_text
+
+def remove_punctuation(text):
+    symbols = "!\"#$%&()*+-./:;<=>?@[\]^_`{|}~\n"
+    for i in symbols:
+        text = numpy.char.replace(text, i, ' ')
     return text
 
 def extract_clusters(Z, threshold, n):
@@ -148,16 +179,18 @@ for feed in feeds:
     d = feedparser.parse(feed)
     for e in d['entries']:
         clean_title = clean_headline(e['title'])
+        fixed_title = fix_f1_phrases(clean_title)
+        fixed_title = remove_stop_words(fixed_title)
+
         clean_text = ftfy.fix_text(e['description'])
         words = nltk.wordpunct_tokenize(clean_text)
-        words.extend(nltk.wordpunct_tokenize(clean_title))
+        words.extend(nltk.wordpunct_tokenize(fixed_title))
 
-        stop_words = set(stopwords.words('english'))
 
         lowerwords = [x.lower() for x in words if len(x) > 1]
 
         filtered = []
-        important = ['chassis','fernando','alonso','alpha','alphatauri','brown','f1','leclerc','mclaren','fp1','fp2','valterri', 'pole', 'live', 'qualifying', 'renault', 'ricciardo', 'ocon', 'mclaren', 'norris', 'sainz', 'hulkenberg', 'announce', 'contract', 'concorde', 'bottas', 'mercedes', 'lewis',
+        important = ['magnussen','crash','cooling','tyre','principal','hulk','title','modes','engine','ban','steiner','grosjean','haas','testing','teams','chassis','fernando','alonso','alpha','alphatauri','brown','f1','leclerc','mclaren','fp1','fp2','valterri', 'pole', 'live', 'qualifying', 'renault', 'ricciardo', 'ocon', 'mclaren', 'norris', 'sainz', 'hulkenberg', 'announce', 'contract', 'concorde', 'bottas', 'mercedes', 'lewis',
                      'hamilton', 'ferrari', 'verstappen', 'red', 'bull', 'formula', '2021', 'sign', 'deal', 'vettel', 'perez', 'racing', 'point', 'stroll', 'horner', 'wolff', 'marko', 'leclerc', 'penalty', 'appeal']
 
         for w in lowerwords:
@@ -169,7 +202,7 @@ for feed in feeds:
                 filtered.append(w)
 
         # Stem the words so we compare canonical words
-        # lowerwords = [ps.stem(x) for x in words if len(x) > 1]
+        filtered = [ps.stem(x) for x in words if len(x) > 1]
 
         corpus.append(filtered)
 
@@ -197,7 +230,7 @@ for feed in feeds:
 
 
 key_word_list = set()
-nkeywords = 5
+nkeywords = 4
 [[key_word_list.add(x) for x in top_keywords(nkeywords, doc, corpus)]
  for doc in corpus]
 for doc in corpus:
@@ -248,26 +281,43 @@ for key in clusters:
     code = " " + "<div class='item'>"
     for id in clusters[key]:
         ## The first article in the cluster
+        cleaned = text[id].partition('.')[0] + '.'
         if first == 1:
             # Extract the first sentence from each sentence
             # so we can avoid the last sentences from each site like social media promotion
-            cleaned = text[id].partition('.')[0] + '.'
-            code += "<div class='sitename'>" + "<a href='" + \
-                sitelink[id] + "'>" + publisher[id] + "</a></div>"
+            if sitelink[id].find('f1i') != -1:
+                code += "<div class='sitename'>" + "<a href='" + sitelink[id] + "'>" + "<img src='f1i.jpg' height='17px'>" + "</a> </div>"
+            if sitelink[id].find('bbc') != -1:
+                code += "<div class='sitename'>" + "<a href='" + sitelink[id] + "'>" + "<img src='bbc.png' height='17px'>" + "</a></div>"             
+            if sitelink[id].find('racefans') != -1:
+                code += "<div class='sitename'>" + "<a href='" + sitelink[id] + "'>" + "<img src='racefans.jpg' height='17px'>" + "</a></div>"             
+            if sitelink[id].find('planetf1') != -1:
+                code += "<div class='sitename'>" + "<a href='" + sitelink[id] + "'>" + "<img src='planetf1.jpg' height='17px'>" + "</a></div>"             
+            if sitelink[id].find('pitpass') != -1:
+                code += "<div class='sitename'>" + "<a href='" + sitelink[id] + "'>" + "<img src='pitpass.png' height='17px'>" + "</a></div>"             
+            if sitelink[id].find('motorsport.com') != -1:
+                code += "<div class='sitename'>" + "<a href='" + sitelink[id] + "'>" + "<img src='motorsport.png' height='17px'>" + "</a></div>"             
+            if sitelink[id].find('essentiallysports') != -1:
+                code += "<div class='sitename'>" + "<a href='" + sitelink[id] + "'>" + "<img src='es.png' height='17px'>" + "</a></div>"            
+            if sitelink[id].find('grandprix247.com') != -1:
+                code += "<div class='sitename'>" + "<a href='" + sitelink[id] + "'>" + "<img src='gp247.png' height='17px'>" + "</a></div>"
+            if sitelink[id].find('autosport.com') != -1:
+                code += "<div class='sitename'>" + "<a href='" + sitelink[id] + "'>" + "<img src='autosport.png' height='17px'>" + "</a></div>"    
+            if sitelink[id].find('express.co.uk') != -1:
+                code += "<div class='sitename'>" + "<a href='" + sitelink[id] + "'>" + "<img src='express.png' height='17px'>" + "</a></div>" 
             code += "<div class='headline'>" + "<a href='" + \
                 link[id] + "'>" + titles[id] + "</a></div>"
             code += "<div class='text'>" + cleaned + "</div>"
             first = first + 1
-            code += "<div class='more'>More: "
+            code += "<div class='more'>Related: <br />"
             the_date = date[id]
         # All other articles in the cluster go to the secondary linsk
         else:
-            code += "<a href=" + \
-                link[id] + ">" + "[" + publisher[id] + "] " + \
-                    titles[id] + "</a><br/> "
+            code += "<a class='headline3' href=" + link[id] + ">" + titles[id] + "</a> - [" + publisher[id] + "] <br/><span class='text2'>" + cleaned + "<span><br /><br />"
         top_story[id] = "yes"
     code += "</div></div>"
-    posts.append((the_date, code))
+    if cleaned != '.':
+        posts.append((the_date, code))
 
 posts.sort()
 posts.reverse()
@@ -282,10 +332,8 @@ num = len(titles)
 for i in range(0, num):
     code = ""
     if top_story[i] == "no":
-        code += "<div class='item2'><div class='sitename'>" + \
-            "<a href='" + sitelink[i] + "'>" + publisher[i] + "</a></div>"
-        code += "<div class='headline2'>" + "<a href='" + \
-            link[i] + "'>" + clean_headline(titles[i]) + "</a></div></div>"
+        code += "<div class='item2'><div class='sitename'>" + "<a href='" + sitelink[i] + "'>" + publisher[i] + "</a></div>"
+        code += "<div class='headline2'>" + "<a href='" + link[i] + "'>" + clean_headline(titles[i]) + "</a></div></div>"
         latest.append((date[i], code))
 
 latest.sort()

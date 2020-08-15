@@ -51,6 +51,14 @@ body
 	text-decoration: none;
 }
 
+.headline3 a {
+	color: #004860;
+	font-size: 13px;
+	font-family: 'Raleway';
+	font-weight: 600;
+	text-decoration: none;
+}
+
 .headline a:hover {
 	background-color: #D0E8F4;
 	text-decoration: underline;	
@@ -65,6 +73,13 @@ body
 	font-size: 14px;
 	color: #000;
 	padding: 5px 0px 5px 0;
+}
+
+.text {
+	font-size: 14px;
+	color: #000;
+	padding: 5px 0px 5px 0;
+	font-weight: normal;
 }
 
 .time {
@@ -86,12 +101,12 @@ body
 	padding-top: 10px;
 	border-bottom: 1px solid #ddd;
 	font-size: 13px;
-	font-weight: 600;
+	margin-left: 30px;
 }
 
 .more a {
 	color: #004860;
-	font-weight: normal;
+	font-weight: bold;
 	text-decoration: none;
 }
 
