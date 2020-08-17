@@ -87,11 +87,11 @@ body
 	color: #3EB650;
 }	
 .header {
-	padding: 10px;
+
     color: white;
     font-family: 'Raleway';
     font-size: 24px;
-	background-color: red;
+	background-color: #E4052F;
 	font-weight: bold;
 	max-width: 900px;
 }
